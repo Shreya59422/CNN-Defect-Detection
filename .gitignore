@@ -1,0 +1,24 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Dataset
+data/
+
+# Training outputs and temporary files
+*.log
+.ipynb_checkpoints/
+
+# Keep trained model files available for deployment
+# Do not ignore models/
+
+# Environment and secrets
+.env
+.streamlit/secrets.toml
+
+# OS files
+.DS_Store
+Thumbs.db
