@@ -163,13 +163,16 @@ transform = transforms.Compose([
 # APPLICATION INTERFACE
 # ==========================================
 
-st.title("Manufacturing Defect Detection")
+st.title("Manufacturing Defect Detection System")
+
+st.subheader("Automated Surface Inspection")
 
 st.write(
-    "CNN-based surface defect classification "
-    "using the NEU-CLS dataset."
+    "Upload a manufacturing surface image to identify and "
+    "classify defects. The system provides the predicted "
+    "defect category along with its confidence score "
+    "to support quality inspection."
 )
-
 st.divider()
 
 st.subheader("Upload Manufacturing Image")
@@ -322,7 +325,4 @@ if uploaded_file is not None:
 # ==========================================
 
 st.divider()
-
-st.caption(
-    "CNN-Based Defect Detection in Manufacturing Processes"
-)
+st.caption("Thank you for visiting!")
