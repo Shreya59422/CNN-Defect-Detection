@@ -6,7 +6,7 @@ The system uses a custom Improved Convolutional Neural Network (CNN) implemented
 
 ## Live Application
 
-**[Manufacturing Defect Detection System](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)**
+[**Manufacturing Defect Detection System**](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
 
 ## Project Overview
 
@@ -15,6 +15,26 @@ Surface defects in manufacturing can affect product quality and reliability. Ide
 This project focuses on automated surface defect classification using deep learning. The trained CNN analyzes uploaded manufacturing images and predicts the corresponding defect category.
 
 The application provides an interactive interface for image-based defect prediction and confidence score visualization, supporting surface inspection and quality analysis.
+
+## Application Screenshots
+
+### 1. Application Interface
+
+The application provides an interface for uploading manufacturing surface images for defect classification.
+
+![Manufacturing Defect Detection System - Application Interface](screenshots/app_interface.png)
+
+### 2. Defect Prediction
+
+The trained CNN predicts the defect category and displays the model's confidence score.
+
+![Manufacturing Defect Detection System - Defect Prediction](screenshots/defect_prediction.png)
+
+### 3. Class Probability Scores
+
+The application displays probability scores for all six defect categories, allowing users to view the model's predictions across different classes.
+
+![Manufacturing Defect Detection System - Class Probability Scores](screenshots/prediction_results.png)
 
 ## Project Objectives
 
@@ -126,8 +146,14 @@ The evaluation results and visualizations are available in the `results/` direct
 cnn-defect-detection/
 │
 ├── app.py
+├── README.md
 ├── requirements.txt
 ├── .gitignore
+│
+├── screenshots/
+│   ├── app_interface.png
+│   ├── defect_prediction.png
+│   └── prediction_results.png
 │
 ├── models/
 │   └── neu_cnn_improved.pth
@@ -208,7 +234,7 @@ http://localhost:8501
 
 Alternatively, access the deployed application:
 
-**[Open Manufacturing Defect Detection System](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)**
+[**Open Manufacturing Defect Detection System**](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
 
 ## Model Training
 
@@ -262,11 +288,11 @@ These visualizations support model evaluation and help identify defect categorie
 - Extend the application with additional inspection capabilities.
 - Validate the system using real-world manufacturing images.
 
-## Author
+## Authors
 
-**Shreya Reddy S**  
-**Likitha M S**  
-**Tejashwini**
+- **Shreya Reddy S**
+- **Likitha M S**
+- **Tejashwini**
 
 GitHub: [Shreya59422](https://github.com/Shreya59422)
 
