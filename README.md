@@ -108,7 +108,7 @@ The model was trained using the available GPU or CPU environment.
 
 ## Model Performance
 
-The trained model achieved the following results on the held-out test dataset containing 276 images.
+The trained model was evaluated on the held-out NEU-CLS test dataset containing 276 images.
 
 ### Test Results
 
@@ -120,8 +120,6 @@ The trained model achieved the following results on the held-out test dataset co
 | Total Test Images | 276 |
 
 ### Evaluation Metrics
-
-The model was evaluated using the following classification metrics:
 
 | Metric | Score |
 |---|---:|
