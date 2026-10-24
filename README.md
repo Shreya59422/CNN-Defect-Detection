@@ -6,7 +6,7 @@ The system uses a custom Improved Convolutional Neural Network (CNN) implemented
 
 ## Live Application
 
-[**Manufacturing Defect Detection System**](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
+[Manufacturing Defect Detection System](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
 
 ## Project Overview
 
@@ -72,6 +72,8 @@ The dataset contains grayscale steel surface images belonging to six defect cate
 
 The dataset is organized into training, validation, and testing subsets.
 
+The model processes grayscale images resized to 200 × 200 pixels.
+
 ## Model Architecture
 
 The project uses a custom Improved CNN architecture implemented in PyTorch.
@@ -106,29 +108,45 @@ The model was trained using the available GPU or CPU environment.
 
 ## Model Performance
 
-The trained model achieved the following results on the held-out test dataset:
+The trained model achieved the following results on the held-out test dataset containing 276 images.
+
+### Test Results
 
 | Metric | Result |
 |---|---:|
 | Test Accuracy | 96.38% |
 | Correct Predictions | 266 |
 | Incorrect Predictions | 10 |
-| Test Images | 276 |
+| Total Test Images | 276 |
 
 ### Evaluation Metrics
 
-The model was evaluated using:
+The model was evaluated using the following classification metrics:
 
-- Accuracy
-- Precision
-- Recall
-- F1-score
+| Metric | Score |
+|---|---:|
+| Weighted Precision | 96.41% |
+| Weighted Recall | 96.38% |
+| Weighted F1-Score | 96.37% |
+
+Additional evaluation methods include:
+
 - Confusion matrix
 - Classification report
+- Class-wise performance analysis
+- Misclassified image analysis
+
+### Evaluation Summary
+
+The model correctly classified 266 out of 276 test images, achieving an overall test accuracy of 96.38%.
+
+Weighted precision, recall, and F1-score were used to evaluate classification performance across the six defect categories.
+
+The results demonstrate promising performance on the selected NEU-CLS test dataset.
+
+However, these results do not guarantee equivalent performance on real-world manufacturing images. Further testing under actual production conditions is required before considering practical deployment.
 
 The evaluation results and visualizations are available in the `results/` directory.
-
-**Note:** These results represent performance on the selected test dataset and do not guarantee equivalent performance on real-world manufacturing images.
 
 ## Application Features
 
@@ -184,6 +202,8 @@ cnn-defect-detection/
     └── neu_cnn_improved_misclassified_gallery.png
 ```
 
+Note: The dataset and trained model files may be stored separately depending on the project configuration.
+
 ## Installation and Setup
 
 ### 1. Clone the Repository
@@ -212,6 +232,12 @@ For Windows PowerShell:
 .\.venv\Scripts\Activate.ps1
 ```
 
+For Windows Command Prompt:
+
+```cmd
+.venv\Scripts\activate
+```
+
 ### 5. Install Dependencies
 
 ```bash
@@ -234,7 +260,7 @@ http://localhost:8501
 
 Alternatively, access the deployed application:
 
-[**Open Manufacturing Defect Detection System**](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
+[Open Manufacturing Defect Detection System](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
 
 ## Model Training
 
@@ -256,11 +282,13 @@ python src/train_cnn_improved.py
 python src/evaluate_cnn_improved.py
 ```
 
+The training process prepares the dataset, trains the CNN model, and generates evaluation outputs.
+
 The trained model and evaluation outputs are saved in their respective directories.
 
 ## Results and Visualizations
 
-The project includes:
+The project includes the following evaluation visualizations and outputs:
 
 - Training accuracy curve
 - Training loss curve
@@ -277,6 +305,7 @@ These visualizations support model evaluation and help identify defect categorie
 - Predictions depend on image quality and similarity to the training data.
 - Confidence scores represent model probabilities and are not guarantees of correctness.
 - The application performs image classification rather than complete industrial inspection.
+- The model may misclassify visually similar defect categories.
 - Real-world deployment requires additional validation using manufacturing images collected under actual production conditions.
 
 ## Future Improvements
@@ -287,6 +316,7 @@ These visualizations support model evaluation and help identify defect categorie
 - Explore model optimization for faster inference.
 - Extend the application with additional inspection capabilities.
 - Validate the system using real-world manufacturing images.
+- Explore integration with real-time industrial inspection systems.
 
 ## Authors
 
@@ -304,4 +334,4 @@ Please refer to the original dataset documentation for dataset licensing and usa
 
 ---
 
-*Thank you for visiting!*
+Thank you for visiting!
