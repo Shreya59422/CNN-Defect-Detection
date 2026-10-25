@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 RESULTS_DIR = PROJECT_ROOT / "results"
 
-HISTORY_FILE = RESULTS_DIR / "neu_cnn_training_history.csv"
+HISTORY_FILE = RESULTS_DIR / "neu_cnn_improved_training_history.csv"
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 

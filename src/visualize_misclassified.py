@@ -16,13 +16,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PREDICTIONS_FILE = (
     PROJECT_ROOT
     / "results"
-    / "neu_cnn_test_predictions.csv"
+    / "neu_cnn_improved_test_predictions.csv"
 )
 
 OUTPUT_FILE = (
     PROJECT_ROOT
     / "results"
-    / "neu_cnn_misclassified_gallery.png"
+    / "neu_cnn_improved_misclassified_gallery.png"
 )
 
 
@@ -65,14 +65,14 @@ else:
     # Main title
 
     fig.suptitle(
-        "Misclassified Surface Defect Images",
+        "Improved CNN - Misclassified Surface Defect Images",
         fontsize=18,
         fontweight="bold",
         y=0.98
     )
 
     # ==========================================
-    # 4. CREATE SEPARATE IMAGE AND TEXT PANELS
+    # 4. CREATE IMAGE AND TEXT PANELS
     # ==========================================
 
     for index, (_, row) in enumerate(
@@ -145,6 +145,8 @@ else:
 
         text_ax.axis("off")
 
+        # Actual class
+
         text_ax.text(
             0.5,
             0.85,
@@ -155,6 +157,8 @@ else:
             transform=text_ax.transAxes
         )
 
+        # Predicted class
+
         text_ax.text(
             0.5,
             0.50,
@@ -164,6 +168,8 @@ else:
             fontsize=11,
             transform=text_ax.transAxes
         )
+
+        # Image filename
 
         text_ax.text(
             0.5,
