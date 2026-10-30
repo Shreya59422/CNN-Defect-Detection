@@ -62,12 +62,15 @@ for index, category in enumerate(CATEGORIES, start=1):
         # 1. Dataset
 
         datamodule = MVTecAD(
-            root=DATASET_PATH,
-            category=category,
-            train_batch_size=8,
-            eval_batch_size=8,
-            num_workers=0,
-        )
+    root=Path("data/mvtec"),
+    category=category,
+    train_batch_size=8,
+    eval_batch_size=8,
+    num_workers=0,
+    val_split_mode="synthetic",
+    val_split_ratio=0.2,
+    seed=42,
+)
 
 
         # 2. PatchCore model

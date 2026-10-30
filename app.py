@@ -26,21 +26,56 @@ st.set_page_config(
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
-CHECKPOINT = (
+CHECKPOINT_ROOT = (
     PROJECT_ROOT
     / "results"
-    / "screw_synthetic_experiment"
+    / "anomaly_detection"
     / "Patchcore"
     / "MVTecAD"
-    / "screw"
-    / "v0"
-    / "weights"
-    / "lightning"
-    / "model.ckpt"
 )
 
-# Actual test evaluation results
-METRICS = {
+METRICS_FILE = PROJECT_ROOT / "results" / "patchcore_all_categories.csv"
+
+CATEGORIES = [
+    "bottle",
+    "cable",
+    "capsule",
+    "carpet",
+    "grid",
+    "hazelnut",
+    "leather",
+    "metal_nut",
+    "pill",
+    "screw",
+    "tile",
+    "toothbrush",
+    "transistor",
+    "wood",
+    "zipper"
+]
+
+CATEGORY_LABELS = {
+    "bottle": "Bottle",
+    "cable": "Cable",
+    "capsule": "Capsule",
+    "carpet": "Carpet",
+    "grid": "Grid",
+    "hazelnut": "Hazelnut",
+    "leather": "Leather",
+    "metal_nut": "Metal Nut",
+    "pill": "Pill",
+    "screw": "Screw",
+    "tile": "Tile",
+    "toothbrush": "Toothbrush",
+    "transistor": "Transistor",
+    "wood": "Wood",
+    "zipper": "Zipper"
+}
+
+# Detailed screw synthetic test metrics.
+# These must only be displayed for the screw experiment.
+
+SCREW_METRICS = {
     "Image AUROC": 0.955114,
     "Image AP": 0.984101,
     "Image F1": 0.875576,
@@ -54,14 +89,79 @@ METRICS = {
     "Pixel Recall": 0.011565,
 }
 
-CONFUSION_MATRIX = np.array([
+SCREW_CONFUSION_MATRIX = np.array([
     [38, 3],
     [24, 95]
 ])
 
 
 # --------------------------------------------------
-# 2. CUSTOM DARK THEME
+# 2. DISCOVER CATEGORY CHECKPOINTS
+# --------------------------------------------------
+
+def find_checkpoint(category):
+
+    category_dir = CHECKPOINT_ROOT / category
+
+    if not category_dir.exists():
+        return None
+
+    checkpoints = list(
+        category_dir.glob("*/weights/lightning/model.ckpt")
+    )
+
+    if not checkpoints:
+        return None
+
+    # Prefer the highest version available.
+    def version_number(path):
+        version = path.parent.parent.parent.name
+
+        try:
+            return int(version.replace("v", ""))
+        except ValueError:
+            return -1
+
+    return max(checkpoints, key=version_number)
+
+
+CHECKPOINTS = {
+    category: find_checkpoint(category)
+    for category in CATEGORIES
+}
+
+AVAILABLE_CATEGORIES = [
+    category
+    for category, checkpoint in CHECKPOINTS.items()
+    if checkpoint is not None
+]
+
+
+# --------------------------------------------------
+# 3. LOAD CATEGORY-WISE METRICS
+# --------------------------------------------------
+
+@st.cache_data
+def load_category_metrics():
+
+    if not METRICS_FILE.exists():
+        return pd.DataFrame()
+
+    df = pd.read_csv(METRICS_FILE)
+
+    if "Category" not in df.columns:
+        return pd.DataFrame()
+
+    df["Category"] = df["Category"].astype(str).str.lower()
+
+    return df
+
+
+CATEGORY_METRICS = load_category_metrics()
+
+
+# --------------------------------------------------
+# 4. CUSTOM DARK THEME
 # --------------------------------------------------
 
 st.markdown("""
@@ -129,20 +229,22 @@ div.stButton > button:hover {
     background-color: #1d4ed8;
     color: white;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 
 # --------------------------------------------------
-# 3. LOAD PATCHCORE MODEL
+# 5. MODEL LOADING
 # --------------------------------------------------
 
 @st.cache_resource
-def load_model():
-    if not CHECKPOINT.exists():
+def load_model(checkpoint_path):
+
+    checkpoint = Path(checkpoint_path)
+
+    if not checkpoint.exists():
         raise FileNotFoundError(
-            f"Model checkpoint not found: {CHECKPOINT}"
+            f"Checkpoint not found: {checkpoint}"
         )
 
     model = Patchcore()
@@ -155,10 +257,11 @@ def load_model():
 
 
 # --------------------------------------------------
-# 4. HELPER FUNCTIONS
+# 6. HELPER FUNCTIONS
 # --------------------------------------------------
 
 def metric_card(label, value):
+
     st.markdown(
         f"""
         <div class="metric-card">
@@ -170,13 +273,31 @@ def metric_card(label, value):
     )
 
 
+def get_category_metrics(category):
+
+    if CATEGORY_METRICS.empty:
+        return None
+
+    rows = CATEGORY_METRICS[
+        CATEGORY_METRICS["Category"] == category
+    ]
+
+    if rows.empty:
+        return None
+
+    return rows.iloc[0]
+
+
 def create_heatmap(original_image, anomaly_map):
+
     original = np.array(original_image.convert("RGB"))
 
-    anomaly_map = np.asarray(anomaly_map, dtype=np.float32)
+    anomaly_map = np.asarray(
+        anomaly_map,
+        dtype=np.float32
+    )
 
     anomaly_map = np.squeeze(anomaly_map)
-
     anomaly_map = np.nan_to_num(anomaly_map)
 
     low = anomaly_map.min()
@@ -188,7 +309,6 @@ def create_heatmap(original_image, anomaly_map):
         anomaly_map = np.zeros_like(anomaly_map)
 
     heatmap = plt.get_cmap("jet")(anomaly_map)[..., :3]
-
     heatmap = (heatmap * 255).astype(np.uint8)
 
     heatmap_image = Image.fromarray(heatmap).resize(
@@ -205,11 +325,21 @@ def create_heatmap(original_image, anomaly_map):
     return np.clip(overlay, 0, 255).astype(np.uint8)
 
 
-def inspect_image(uploaded_file):
+def inspect_image(uploaded_file, category):
+
+    checkpoint = CHECKPOINTS.get(category)
+
+    if checkpoint is None:
+        raise FileNotFoundError(
+            f"No checkpoint is available for {category}."
+        )
+
     image = Image.open(uploaded_file).convert("RGB")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        image_path = Path(temp_dir) / uploaded_file.name
+
+        image_path = Path(temp_dir) / "inspection_image.png"
+
         image.save(image_path)
 
         dataset = PredictDataset(
@@ -217,24 +347,31 @@ def inspect_image(uploaded_file):
             image_size=(256, 256)
         )
 
-        model, engine = load_model()
+        model, engine = load_model(str(checkpoint))
 
         predictions = engine.predict(
             model=model,
             dataset=dataset,
-            ckpt_path=str(CHECKPOINT),
+            ckpt_path=str(checkpoint),
             return_predictions=True
         )
 
     if not predictions:
-        raise RuntimeError("The model returned no predictions.")
+        raise RuntimeError(
+            "The model returned no predictions."
+        )
 
     batch = predictions[0]
 
     score = float(batch.pred_score[0].item())
     label = int(batch.pred_label[0].item())
 
-    anomaly_map = batch.anomaly_map[0].detach().cpu().numpy()
+    anomaly_map = (
+        batch.anomaly_map[0]
+        .detach()
+        .cpu()
+        .numpy()
+    )
 
     overlay = create_heatmap(image, anomaly_map)
 
@@ -242,12 +379,14 @@ def inspect_image(uploaded_file):
 
 
 # --------------------------------------------------
-# 5. SIDEBAR NAVIGATION
+# 7. SIDEBAR NAVIGATION
 # --------------------------------------------------
 
 st.sidebar.title("🔍 Inspection AI")
 
-st.sidebar.caption("CNN-Based Manufacturing Defect Detection")
+st.sidebar.caption(
+    "CNN-Based Manufacturing Defect Detection"
+)
 
 st.sidebar.divider()
 
@@ -264,33 +403,58 @@ page = st.sidebar.radio(
 st.sidebar.divider()
 
 st.sidebar.markdown("### Model Information")
+
 st.sidebar.write("**Model:** PatchCore")
 st.sidebar.write("**Feature Extractor:** WideResNet50_2")
 st.sidebar.write("**Dataset:** MVTec AD")
-st.sidebar.write("**Category:** Screw")
 st.sidebar.write("**Device:** CPU")
 
-if CHECKPOINT.exists():
-    st.sidebar.success("Model checkpoint available")
+st.sidebar.write(
+    f"**Available checkpoints:** {len(AVAILABLE_CATEGORIES)}/15"
+)
+
+selected_category = st.sidebar.selectbox(
+    "Select Product Category",
+    options=CATEGORIES,
+    format_func=lambda x: CATEGORY_LABELS[x]
+)
+
+selected_checkpoint = CHECKPOINTS.get(selected_category)
+
+if selected_checkpoint is not None:
+    st.sidebar.success(
+        f"{CATEGORY_LABELS[selected_category]} checkpoint available"
+    )
+    st.sidebar.caption(
+        f"Checkpoint version: {selected_checkpoint.parent.parent.parent.name}"
+    )
 else:
-    st.sidebar.error("Model checkpoint missing")
+    st.sidebar.error(
+        f"No checkpoint found for {CATEGORY_LABELS[selected_category]}"
+    )
+
+st.sidebar.divider()
+
+st.sidebar.caption(
+    "Select a category to inspect its corresponding product."
+)
 
 
 # --------------------------------------------------
-# 6. HEADER
+# 8. HEADER
 # --------------------------------------------------
 
 st.title("Industrial Defect Detection System")
 
 st.caption(
-    "AI-powered visual inspection for manufacturing components"
+    "AI-powered visual inspection across 15 MVTec AD categories"
 )
 
 st.divider()
 
 
 # --------------------------------------------------
-# 7. OVERVIEW PAGE
+# 9. OVERVIEW PAGE
 # --------------------------------------------------
 
 if page == "Overview":
@@ -298,76 +462,78 @@ if page == "Overview":
     st.subheader("Dashboard Overview")
 
     st.write(
-        "Monitor model performance and inspect manufacturing "
-        "components for potential defects."
+        "Monitor model performance and inspect industrial "
+        "components across multiple product categories."
     )
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        metric_card("Image AUROC", "95.51%")
+        metric_card(
+            "Product Categories",
+            str(len(AVAILABLE_CATEGORIES))
+        )
 
     with col2:
-        metric_card("Image Precision", "96.94%")
+        metric_card(
+            "Available Checkpoints",
+            f"{len(AVAILABLE_CATEGORIES)}/15"
+        )
 
     with col3:
-        metric_card("Image Recall", "79.83%")
+        if not CATEGORY_METRICS.empty:
+            mean_auroc = CATEGORY_METRICS[
+                "image_AUROC"
+            ].mean()
+
+            metric_card(
+                "Mean Image AUROC",
+                f"{mean_auroc * 100:.2f}%"
+            )
+        else:
+            metric_card("Mean Image AUROC", "N/A")
 
     with col4:
-        metric_card("False Negative Rate", "20.17%")
+        metric_card(
+            "Selected Category",
+            CATEGORY_LABELS[selected_category]
+        )
 
     st.write("")
 
-    left, right = st.columns(2)
+    st.markdown("### Category-wise Evaluation")
 
-    with left:
-        st.markdown("### Detection Performance")
+    if not CATEGORY_METRICS.empty:
 
-        st.markdown(
-            '<div class="section-card">',
-            unsafe_allow_html=True
+        display_df = CATEGORY_METRICS.copy()
+
+        display_df["Category"] = (
+            display_df["Category"]
+            .map(CATEGORY_LABELS)
+            .fillna(display_df["Category"])
         )
 
-        performance = pd.DataFrame({
-            "Metric": ["AUROC", "Average Precision", "F1 Score"],
-            "Value": [95.51, 98.41, 87.56]
-        })
-
-        st.bar_chart(
-            performance.set_index("Metric"),
-            y="Value"
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True
         )
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with right:
-        st.markdown("### Prediction Summary")
-
-        st.markdown(
-            '<div class="section-card">',
-            unsafe_allow_html=True
+    else:
+        st.warning(
+            "Category metrics file was not found. "
+            "Check results/patchcore_all_categories.csv."
         )
-
-        st.write("**Test images:** 160")
-        st.write("**Normal images:** 41")
-        st.write("**Defective images:** 119")
-        st.write("**Correct normal predictions:** 38")
-        st.write("**Correct defect predictions:** 95")
-        st.write("**Missed defects:** 24")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.write("")
 
     st.info(
-        "The system uses PatchCore anomaly detection trained "
-        "using normal training images. Suspicious predictions "
-        "should be reviewed by a human inspector."
+        "PatchCore learns from normal training images and "
+        "identifies deviations during inspection. "
+        "Suspicious predictions should be reviewed by a human inspector."
     )
 
 
 # --------------------------------------------------
-# 8. LIVE INSPECTION PAGE
+# 10. LIVE INSPECTION PAGE
 # --------------------------------------------------
 
 elif page == "Live Inspection":
@@ -375,165 +541,268 @@ elif page == "Live Inspection":
     st.subheader("Live Component Inspection")
 
     st.write(
-        "Upload a screw image to identify potential anomalies."
+        f"Selected category: **{CATEGORY_LABELS[selected_category]}**"
     )
 
-    uploaded_file = st.file_uploader(
-        "Upload component image",
-        type=["jpg", "jpeg", "png", "bmp"]
-    )
+    if selected_checkpoint is None:
 
-    if uploaded_file is not None:
+        st.error(
+            "The checkpoint for this category is unavailable. "
+            "Choose another category or add the required checkpoint."
+        )
 
-        original = Image.open(uploaded_file).convert("RGB")
+    else:
 
-        st.markdown("### Uploaded Image")
-        st.image(original, use_container_width=True)
+        uploaded_file = st.file_uploader(
+            "Upload component image",
+            type=["jpg", "jpeg", "png", "bmp"]
+        )
 
-        if st.button("Run Defect Inspection", use_container_width=True):
+        if uploaded_file is not None:
 
-            try:
-                with st.spinner("Analysing component..."):
+            original = Image.open(uploaded_file).convert("RGB")
 
-                    image, score, label, anomaly_map, overlay = (
-                        inspect_image(uploaded_file)
-                    )
+            st.markdown("### Uploaded Image")
+            st.image(original, use_container_width=True)
 
-                result = (
-                    "Suspicious Component"
-                    if label == 1
-                    else "Normal Component"
-                )
+            if st.button(
+                "Run Defect Inspection",
+                use_container_width=True
+            ):
 
-                st.session_state.setdefault("history", [])
+                try:
 
-                st.session_state.history.insert(
-                    0,
-                    {
-                        "Image": uploaded_file.name,
-                        "Prediction": result,
-                        "Anomaly Score": score,
-                        "Time": datetime.now().strftime(
-                            "%Y-%m-%d %H:%M:%S"
+                    with st.spinner(
+                        f"Analysing {CATEGORY_LABELS[selected_category]}..."
+                    ):
+
+                        uploaded_file.seek(0)
+
+                        image, score, label, anomaly_map, overlay = (
+                            inspect_image(
+                                uploaded_file,
+                                selected_category
+                            )
                         )
-                    }
-                )
 
-                st.divider()
-
-                st.subheader("Inspection Result")
-
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.metric("Anomaly Score", f"{score:.4f}")
-
-                with col2:
-                    if label == 1:
-                        st.error("Suspicious Component")
-                    else:
-                        st.success("Normal Component")
-
-                st.markdown("### Defect Localization")
-
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.write("Original Image")
-                    st.image(image, use_container_width=True)
-
-                with col2:
-                    st.write("Anomaly Heatmap Overlay")
-                    st.image(
-                        overlay,
-                        use_container_width=True
+                    result = (
+                        "Suspicious Component"
+                        if label == 1
+                        else "Normal Component"
                     )
 
-                st.warning(
-                    "The heatmap is an anomaly visualization, "
-                    "not a verified defect segmentation mask. "
-                    "Please review suspicious or uncertain "
-                    "components manually."
-                )
+                    st.session_state.setdefault("history", [])
 
-            except Exception as error:
-                st.error(f"Inspection failed: {error}")
+                    st.session_state.history.insert(
+                        0,
+                        {
+                            "Image": uploaded_file.name,
+                            "Category": CATEGORY_LABELS[selected_category],
+                            "Prediction": result,
+                            "Anomaly Score": score,
+                            "Time": datetime.now().strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            )
+                        }
+                    )
+
+                    st.divider()
+
+                    st.subheader("Inspection Result")
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.metric(
+                            "Anomaly Score",
+                            f"{score:.4f}"
+                        )
+
+                    with col2:
+                        if label == 1:
+                            st.error("Suspicious Component")
+                        else:
+                            st.success("Normal Component")
+
+                    st.markdown("### Defect Localization")
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.write("Original Image")
+                        st.image(
+                            image,
+                            use_container_width=True
+                        )
+
+                    with col2:
+                        st.write("Anomaly Heatmap Overlay")
+                        st.image(
+                            overlay,
+                            use_container_width=True
+                        )
+
+                    st.warning(
+                        "The heatmap is an anomaly visualization, "
+                        "not a verified defect segmentation mask. "
+                        "Please review suspicious or uncertain "
+                        "components manually."
+                    )
+
+                except Exception as error:
+
+                    st.error(
+                        f"Inspection failed: {error}"
+                    )
 
 
 # --------------------------------------------------
-# 9. MODEL PERFORMANCE PAGE
+# 11. MODEL PERFORMANCE PAGE
 # --------------------------------------------------
 
 elif page == "Model Performance":
 
-    st.subheader("Model Evaluation")
+    st.subheader("Multi-Category Model Evaluation")
 
     st.caption(
-        "Metrics below are from the completed test evaluation."
+        "The following table contains category-wise evaluation "
+        "results from patchcore_all_categories.csv."
     )
 
-    st.markdown("### Image-Level Metrics")
+    if not CATEGORY_METRICS.empty:
 
-    columns = st.columns(3)
+        display_df = CATEGORY_METRICS.copy()
 
-    image_metrics = [
-        ("AUROC", "95.51%"),
-        ("Average Precision", "98.41%"),
-        ("F1 Score", "87.56%"),
-        ("Precision", "96.94%"),
-        ("Recall", "79.83%"),
-        ("False Negative Rate", "20.17%")
-    ]
+        display_df["Category"] = (
+            display_df["Category"]
+            .map(CATEGORY_LABELS)
+            .fillna(display_df["Category"])
+        )
 
-    for index, (name, value) in enumerate(image_metrics):
-        with columns[index % 3]:
-            metric_card(name, value)
+        st.markdown("### Image-Level and Pixel-Level Metrics")
 
-    st.write("")
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    st.markdown("### Pixel-Level Metrics")
+        st.markdown("### Image AUROC by Category")
 
-    columns = st.columns(3)
+        chart_df = CATEGORY_METRICS[
+            ["Category", "image_AUROC"]
+        ].copy()
 
-    pixel_metrics = [
-        ("AUROC", "98.89%"),
-        ("Average Precision", "32.99%"),
-        ("F1 Score", "2.28%"),
-        ("Precision", "72.49%"),
-        ("Recall", "1.16%"),
-    ]
+        chart_df["Category"] = (
+            chart_df["Category"]
+            .map(CATEGORY_LABELS)
+            .fillna(chart_df["Category"])
+        )
 
-    for index, (name, value) in enumerate(pixel_metrics):
-        with columns[index % 3]:
-            metric_card(name, value)
+        chart_df = chart_df.set_index("Category")
+
+        st.bar_chart(chart_df)
+
+        st.markdown("### Pixel F1-score by Category")
+
+        pixel_df = CATEGORY_METRICS[
+            ["Category", "pixel_F1Score"]
+        ].copy()
+
+        pixel_df["Category"] = (
+            pixel_df["Category"]
+            .map(CATEGORY_LABELS)
+            .fillna(pixel_df["Category"])
+        )
+
+        pixel_df = pixel_df.set_index("Category")
+
+        st.bar_chart(pixel_df)
+
+    else:
+
+        st.warning(
+            "Category evaluation CSV is unavailable."
+        )
 
     st.divider()
 
-    st.markdown("### Image-Level Confusion Matrix")
+    st.markdown("### Detailed Screw Test Evaluation")
+
+    st.caption(
+        "These detailed metrics and the confusion matrix refer "
+        "only to the separate screw synthetic test experiment."
+    )
+
+    columns = st.columns(3)
+
+    screw_image_metrics = [
+        ("Image AUROC", "95.51%"),
+        ("Image Average Precision", "98.41%"),
+        ("Image F1 Score", "87.56%"),
+        ("Image Precision", "96.94%"),
+        ("Image Recall", "79.83%"),
+        ("False Negative Rate", "20.17%")
+    ]
+
+    for index, (name, value) in enumerate(screw_image_metrics):
+
+        with columns[index % 3]:
+            metric_card(name, value)
+
+    st.markdown("### Screw Pixel-Level Metrics")
+
+    columns = st.columns(3)
+
+    screw_pixel_metrics = [
+        ("Pixel AUROC", "98.89%"),
+        ("Pixel Average Precision", "32.99%"),
+        ("Pixel F1 Score", "2.28%"),
+        ("Pixel Precision", "72.49%"),
+        ("Pixel Recall", "1.16%")
+    ]
+
+    for index, (name, value) in enumerate(screw_pixel_metrics):
+
+        with columns[index % 3]:
+            metric_card(name, value)
+
+    st.markdown("### Screw Image-Level Confusion Matrix")
 
     fig, ax = plt.subplots(figsize=(6, 4))
 
     fig.patch.set_facecolor("#111827")
     ax.set_facecolor("#111827")
 
-    ax.imshow(CONFUSION_MATRIX, cmap="Blues")
+    ax.imshow(
+        SCREW_CONFUSION_MATRIX,
+        cmap="Blues"
+    )
 
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
 
-    ax.set_xticklabels(["Normal", "Defective"], color="white")
-    ax.set_yticklabels(["Normal", "Defective"], color="white")
+    ax.set_xticklabels(
+        ["Normal", "Defective"],
+        color="white"
+    )
+
+    ax.set_yticklabels(
+        ["Normal", "Defective"],
+        color="white"
+    )
 
     ax.set_xlabel("Predicted Label", color="white")
     ax.set_ylabel("Actual Label", color="white")
-
-    ax.set_title("Confusion Matrix", color="white")
+    ax.set_title("Screw Confusion Matrix", color="white")
 
     for i in range(2):
         for j in range(2):
+
             ax.text(
-                j, i,
-                str(CONFUSION_MATRIX[i, j]),
+                j,
+                i,
+                str(SCREW_CONFUSION_MATRIX[i, j]),
                 ha="center",
                 va="center",
                 color="black",
@@ -545,14 +814,14 @@ elif page == "Model Performance":
     plt.close(fig)
 
     st.warning(
-        "Pixel-level F1 and recall are low at the evaluated "
-        "threshold. High pixel AUROC alone does not establish "
-        "accurate defect localization."
+        "Screw pixel-level F1 and recall are low at the "
+        "evaluated threshold. High pixel AUROC alone does not "
+        "establish accurate defect localization."
     )
 
 
 # --------------------------------------------------
-# 10. INSPECTION HISTORY PAGE
+# 12. INSPECTION HISTORY PAGE
 # --------------------------------------------------
 
 elif page == "Inspection History":
@@ -571,7 +840,9 @@ elif page == "Inspection History":
             hide_index=True
         )
 
-        csv = history_df.to_csv(index=False).encode("utf-8")
+        csv = history_df.to_csv(
+            index=False
+        ).encode("utf-8")
 
         st.download_button(
             "Download Inspection History",
@@ -581,10 +852,12 @@ elif page == "Inspection History":
         )
 
         if st.button("Clear Inspection History"):
+
             st.session_state.history = []
             st.rerun()
 
     else:
+
         st.info(
             "No inspections yet. Go to Live Inspection "
             "to upload and analyse a component."
@@ -592,12 +865,12 @@ elif page == "Inspection History":
 
 
 # --------------------------------------------------
-# 11. FOOTER
+# 13. FOOTER
 # --------------------------------------------------
 
 st.divider()
 
 st.caption(
-    "CNN-Based Defect Detection in Manufacturing Processes | "
-    "PatchCore | MVTec AD Screw Dataset"
+    "Multi-Category Industrial Defect Detection and Localization "
+    "| PatchCore | MVTec AD | 15 Categories"
 )
