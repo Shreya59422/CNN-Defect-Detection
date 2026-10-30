@@ -245,7 +245,6 @@ The application will open in your browser.
 **Tejashwini S**
 
 
-Developed as an academic industrial defect detection project using deep learning and computer vision.
-
 **GitHub:** https://github.com/Shreya59422
-            
+            https://github.com/likithams09
+            https://github.com/teju123540
