@@ -1,335 +1,250 @@
-# Manufacturing Defect Detection System
+# Multi-Category Industrial Defect Detection and Localization Using CNN-Based PatchCore
 
-A deep learning-based application for detecting and classifying manufacturing surface defects using image analysis.
+An industrial visual inspection system that detects anomalous products and localizes potential defects using PatchCore with a pretrained CNN feature extractor. The project is evaluated on all 15 categories of the MVTec AD dataset.
 
-The system uses a custom Improved Convolutional Neural Network (CNN) implemented in PyTorch to classify steel surface images into six defect categories. It provides predicted defect labels and confidence scores through an interactive Streamlit web application.
-
-## Live Application
-
-[Manufacturing Defect Detection System](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
+**Live Demo:** https://cnn-defect-detection-manufacturingprocess.streamlit.app/  
+**GitHub Repository:** https://github.com/Shreya59422/CNN-Defect-Detection
 
 ## Project Overview
 
-Surface defects in manufacturing can affect product quality and reliability. Identifying these defects through visual inspection can be time-consuming.
+Quality inspection is an important part of manufacturing. Traditional manual inspection can be time-consuming and may lead to inconsistent results.
 
-This project focuses on automated surface defect classification using deep learning. The trained CNN analyzes uploaded manufacturing images and predicts the corresponding defect category.
+This project implements a deep-learning-based industrial anomaly detection system that learns the appearance of normal products and identifies deviations that may indicate defects.
 
-The application provides an interactive interface for image-based defect prediction and confidence score visualization, supporting surface inspection and quality analysis.
+The system uses PatchCore with a pretrained WideResNet50_2 CNN backbone to extract visual features, build a memory bank of normal features, and calculate anomaly scores for inspection images.
 
-## Application Screenshots
+It also generates anomaly maps to highlight suspicious regions.
 
-### 1. Application Interface
+## Objectives
 
-The application provides an interface for uploading manufacturing surface images for defect classification.
-
-![Manufacturing Defect Detection System - Application Interface](screenshots/app_interface.png)
-
-### 2. Defect Prediction
-
-The trained CNN predicts the defect category and displays the model's confidence score.
-
-![Manufacturing Defect Detection System - Defect Prediction](screenshots/defect_prediction.png)
-
-### 3. Class Probability Scores
-
-The application displays probability scores for all six defect categories, allowing users to view the model's predictions across different classes.
-
-![Manufacturing Defect Detection System - Class Probability Scores](screenshots/prediction_results.png)
-
-## Project Objectives
-
-- Develop an improved Convolutional Neural Network (CNN) for automated classification of six manufacturing surface defect categories using the NEU-CLS dataset.
-- Evaluate the model's classification performance using accuracy, precision, recall, F1-score, and confusion matrix analysis to identify its strengths and misclassification patterns.
-- Integrate the trained model into a Streamlit application that enables users to upload surface images, obtain defect predictions, and visualize class-wise confidence scores.
-
-## Technologies Used
-
-| Technology | Purpose |
-|---|---|
-| Python | Model development and application |
-| PyTorch | CNN implementation and training |
-| Torchvision | Image preprocessing and transformations |
-| NumPy | Numerical operations |
-| Pandas | Data analysis and result processing |
-| Matplotlib | Training and evaluation visualizations |
-| Scikit-learn | Classification metrics |
-| Streamlit | Interactive web application |
+- Detect defective and anomalous industrial products.
+- Identify potential defect locations using anomaly maps.
+- Evaluate image-level and pixel-level detection performance.
+- Support multiple industrial product categories.
+- Provide an interactive interface for image inspection.
+- Explore the use of CNN-based feature extraction for automated quality control.
 
 ## Dataset
 
-**Dataset:** NEU-CLS Steel Surface Defect Dataset
+**MVTec Anomaly Detection (MVTec AD)**
 
-The dataset contains grayscale steel surface images belonging to six defect categories.
+The dataset contains normal and defective images from 15 industrial object and texture categories.
 
-| Defect Code | Defect Category |
+The project covers all 15 categories:
+
+| Object Categories | Texture Categories |
 |---|---|
-| Cr | Crazing |
-| In | Inclusion |
-| Pa | Pitted Surface |
-| PS | Patches |
-| RS | Rolled-in Scale |
-| Sc | Scratches |
+| Bottle | Carpet |
+| Cable | Grid |
+| Capsule | Leather |
+| Hazelnut | Tile |
+| Metal Nut | Wood |
+| Pill | |
+| Screw | |
+| Toothbrush | |
+| Transistor | |
+| Zipper | |
 
-The dataset is organized into training, validation, and testing subsets.
+**Training approach:** Normal images are used to build the PatchCore memory bank. Defective images are used for evaluation, not for training the normal reference memory.
 
-The model processes grayscale images resized to 200 × 200 pixels.
+## Methodology
 
-## Model Architecture
+### 1. Image Preprocessing
+- Load and prepare industrial inspection images.
+- Apply the preprocessing required by the pretrained feature extractor.
+- Resize and normalize images for model input.
 
-The project uses a custom Improved CNN architecture implemented in PyTorch.
+### 2. CNN Feature Extraction
+- Use pretrained WideResNet50_2.
+- Extract intermediate feature representations from `layer2` and `layer3`.
+- Combine visual information from different feature levels.
 
-### Architecture Components
+### 3. PatchCore Anomaly Detection
+- Build a memory bank using normal training image features.
+- Apply coreset subsampling to reduce memory requirements.
+- Compare test-image features with the stored normal feature representations.
+- Calculate anomaly scores based on nearest-neighbor distances.
 
-- Four convolutional blocks
-- Batch normalization
-- ReLU activation
-- Max pooling
-- Fully connected classification layer
-- Dropout for regularization
-- Six-class output layer
+### 4. Anomaly Localization
+- Generate pixel-level anomaly maps.
+- Visualize suspicious regions using heatmaps and overlays.
+- Compare predicted anomaly maps with available ground-truth masks during evaluation.
 
-The model processes grayscale images resized to 200 × 200 pixels.
+### 5. Performance Evaluation
+Evaluate the system using:
+- Image AUROC
+- Image F1-score
+- Pixel AUROC
+- Pixel F1-score
 
-### Training Configuration
+## Model Configuration
 
-| Parameter | Value |
+| Component | Configuration |
 |---|---|
-| Image Size | 200 × 200 |
-| Batch Size | 16 |
-| Maximum Epochs | 25 |
-| Optimizer | Adam |
-| Initial Learning Rate | 0.0003 |
-| Loss Function | Cross-Entropy Loss |
-| Weight Decay | 0.0001 |
-| Learning Rate Scheduler | ReduceLROnPlateau |
-| Early Stopping Patience | 6 |
+| Anomaly detection model | PatchCore |
+| CNN backbone | WideResNet50_2 |
+| Feature extraction layers | layer2, layer3 |
+| Coreset sampling ratio | 0.1 |
+| Nearest neighbors | 9 |
+| Training data | Normal images |
+| Dataset | MVTec AD |
+| Categories | 15 |
 
-The model was trained using the available GPU or CPU environment.
+## Evaluation Results
 
-## Model Performance
+The following table presents the category-wise results from `patchcore_all_categories.csv`.
 
-The trained model was evaluated on the held-out NEU-CLS test dataset containing 276 images.
+| Category | Image AUROC | Image F1 | Pixel AUROC | Pixel F1 |
+|---|---:|---:|---:|---:|
+| Bottle | 1.0000 | 0.9920 | 0.9856 | 0.7262 |
+| Cable | 0.9818 | 0.9622 | 0.9847 | 0.6383 |
+| Capsule | 0.9924 | 0.9765 | 0.9901 | 0.5157 |
+| Carpet | 0.9876 | 0.9773 | 0.9906 | 0.6048 |
+| Grid | 0.9883 | 0.9565 | 0.9815 | 0.3852 |
+| Hazelnut | 1.0000 | 0.9928 | 0.9883 | 0.6299 |
+| Leather | 1.0000 | 0.9945 | 0.9922 | 0.4406 |
+| Metal Nut | 0.9980 | 0.9840 | 0.9870 | 0.8406 |
+| Pill | 0.9449 | 0.9489 | 0.9809 | 0.7193 |
+| Screw | 0.9496 | 0.9328 | 0.9887 | 0.3735 |
+| Tile | 0.9996 | 0.9881 | 0.9554 | 0.6193 |
+| Toothbrush | 0.9167 | 0.9355 | 0.9888 | 0.5951 |
+| Transistor | 0.9946 | 0.9620 | 0.9735 | 0.6133 |
+| Wood | 0.9868 | 0.9661 | 0.9315 | 0.4716 |
+| Zipper | 0.9769 | 0.9789 | 0.9814 | 0.5440 |
 
-### Test Results
+**Note:** Image-level metrics measure the ability to distinguish normal from anomalous images. Pixel-level metrics measure defect localization. A high pixel AUROC does not necessarily imply a high pixel F1-score; localization quality varies across categories.
 
-| Metric | Result |
-|---|---:|
-| Test Accuracy | 96.38% |
-| Correct Predictions | 266 |
-| Incorrect Predictions | 10 |
-| Total Test Images | 276 |
+## Streamlit Application
 
-### Evaluation Metrics
+The project includes an interactive Streamlit interface for visual inspection.
 
-| Metric | Score |
-|---|---:|
-| Weighted Precision | 96.41% |
-| Weighted Recall | 96.38% |
-| Weighted F1-Score | 96.37% |
+Features include:
+- Image upload.
+- Anomaly prediction.
+- Anomaly heatmap visualization.
+- Original image and heatmap comparison.
+- Model performance information.
+- Inspection history during the application session.
 
-Additional evaluation methods include:
+**Live Application:** https://cnn-defect-detection-manufacturingprocess.streamlit.app/
 
-- Confusion matrix
-- Classification report
-- Class-wise performance analysis
-- Misclassified image analysis
+Note: The currently deployed application uses the screw-category checkpoint. The project has checkpoints and evaluation results for all 15 categories, but the dashboard should not be described as supporting all-category selection until that functionality is implemented and tested.
 
-### Evaluation Summary
+## Technologies Used
 
-The model correctly classified 266 out of 276 test images, achieving an overall test accuracy of 96.38%.
-
-Weighted precision, recall, and F1-score were used to evaluate classification performance across the six defect categories.
-
-The results demonstrate promising performance on the selected NEU-CLS test dataset.
-
-However, these results do not guarantee equivalent performance on real-world manufacturing images. Further testing under actual production conditions is required before considering practical deployment.
-
-The evaluation results and visualizations are available in the `results/` directory.
-
-## Application Features
-
-- Upload manufacturing surface images.
-- Accept JPG, JPEG, PNG, and BMP image formats.
-- Display the uploaded image.
-- Predict the surface defect category.
-- Display the model's predicted confidence score.
-- Show probability scores for all six defect categories.
-- Provide an interactive interface through Streamlit.
+- Python
+- PyTorch
+- Anomalib
+- PatchCore
+- WideResNet50_2
+- Streamlit
+- NumPy
+- Pandas
+- OpenCV
+- Matplotlib
+- Scikit-learn
 
 ## Project Structure
 
 ```text
-cnn-defect-detection/
+CNN-Defect-Detection/
 │
 ├── app.py
-├── README.md
 ├── requirements.txt
-├── .gitignore
+├── README.md
 │
-├── screenshots/
-│   ├── app_interface.png
-│   ├── defect_prediction.png
-│   └── prediction_results.png
+├── results/
+│   ├── anomaly_detection/
+│   │   └── Patchcore/
+│   │       └── MVTecAD/
+│   │           ├── bottle/
+│   │           ├── cable/
+│   │           ├── capsule/
+│   │           ├── carpet/
+│   │           ├── grid/
+│   │           ├── hazelnut/
+│   │           ├── leather/
+│   │           ├── metal_nut/
+│   │           ├── pill/
+│   │           ├── screw/
+│   │           ├── tile/
+│   │           ├── toothbrush/
+│   │           ├── transistor/
+│   │           ├── wood/
+│   │           └── zipper/
+│   │
+│   ├── patchcore_all_categories.csv
+│   ├── patchcore_category_comparison.csv
+│   └── patchcore_category_metrics_ranked.csv
 │
-├── models/
-│   └── neu_cnn_improved.pth
-│
-├── data/
-│   ├── neu/
-│   └── neu_split/
-│
-├── src/
-│   ├── check_environment.py
-│   ├── prepare_neu_dataset.py
-│   ├── train_cnn_improved.py
-│   ├── evaluate_cnn_improved.py
-│   ├── analyze_results.py
-│   ├── compare_neu_cnn.py
-│   ├── plot_training_history.py
-│   ├── visualize_misclassified.py
-│   └── check_threshold.py
-│
-└── results/
-    ├── neu_cnn_improved_test_metrics.csv
-    ├── neu_cnn_improved_classification_report.csv
-    ├── neu_cnn_improved_confusion_matrix.png
-    ├── neu_cnn_improved_test_predictions.csv
-    ├── neu_cnn_improved_training_history.csv
-    ├── neu_cnn_loss_curve.png
-    ├── neu_cnn_accuracy_curve.png
-    └── neu_cnn_improved_misclassified_gallery.png
+└── scripts/
+    └── training and evaluation scripts
 ```
 
-Note: The dataset and trained model files may be stored separately depending on the project configuration.
+The directory listing is representative. Large model checkpoints and datasets may be stored separately rather than committed to GitHub.
 
-## Installation and Setup
+## Installation and Execution
 
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Shreya59422/CNN-Defect-Detection.git
-```
-
-### 2. Navigate to the Project Directory
-
-```bash
 cd CNN-Defect-Detection
 ```
 
-### 3. Create a Virtual Environment
+### 2. Create a virtual environment
 
 ```bash
 python -m venv .venv
 ```
 
-### 4. Activate the Virtual Environment
+### 3. Activate the environment
 
-For Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 ```
 
-For Windows Command Prompt:
-
-```cmd
-.venv\Scripts\activate
-```
-
-### 5. Install Dependencies
+### 4. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Run the Application
-
-Start the Streamlit application:
+### 5. Run the application
 
 ```bash
 streamlit run app.py
 ```
 
-Open the local application in your browser:
+The application will open in your browser.
 
-```text
-http://localhost:8501
-```
-
-Alternatively, access the deployed application:
-
-[Open Manufacturing Defect Detection System](https://cnn-defect-detection-manufacturingprocess.streamlit.app/)
-
-## Model Training
-
-### Prepare the Dataset
-
-```bash
-python src/prepare_neu_dataset.py
-```
-
-### Train the CNN
-
-```bash
-python src/train_cnn_improved.py
-```
-
-### Evaluate the Trained Model
-
-```bash
-python src/evaluate_cnn_improved.py
-```
-
-The training process prepares the dataset, trains the CNN model, and generates evaluation outputs.
-
-The trained model and evaluation outputs are saved in their respective directories.
-
-## Results and Visualizations
-
-The project includes the following evaluation visualizations and outputs:
-
-- Training accuracy curve
-- Training loss curve
-- Confusion matrix
-- Classification report
-- Test predictions
-- Misclassified image gallery
-
-These visualizations support model evaluation and help identify defect categories that require further improvement.
+**Important:** The required model checkpoint must be available at the path expected by the application. Checkpoints are large files and may not be included in the Git repository.
 
 ## Limitations
 
-- The model is trained on the NEU-CLS steel surface defect dataset.
-- Predictions depend on image quality and similarity to the training data.
-- Confidence scores represent model probabilities and are not guarantees of correctness.
-- The application performs image classification rather than complete industrial inspection.
-- The model may misclassify visually similar defect categories.
-- Real-world deployment requires additional validation using manufacturing images collected under actual production conditions.
+- Pixel-level localization performance varies across product categories.
+- The system relies on pretrained CNN feature representations.
+- The current Streamlit deployment is configured for the screw category.
+- Robustness under different lighting and imaging conditions has not yet been systematically evaluated.
+- Predictions should be reviewed by a human inspector before being used for critical manufacturing decisions.
 
-## Future Improvements
+## Future Enhancements
 
-- Evaluate the model using additional manufacturing datasets.
-- Improve classification performance for visually similar defect categories.
-- Test robustness under different lighting and image conditions.
-- Explore model optimization for faster inference.
-- Extend the application with additional inspection capabilities.
-- Validate the system using real-world manufacturing images.
-- Explore integration with real-time industrial inspection systems.
+- Add category selection to the Streamlit dashboard.
+- Improve pixel-level defect localization.
+- Introduce a human-in-the-loop review workflow for uncertain predictions.
+- Evaluate robustness under different lighting and image acquisition conditions.
+- Optimize inference speed and model memory usage.
+- Explore comparisons with additional anomaly detection architectures.
 
-## Authors
+## Author
+**Shreya Reddy S**
+**Likitha M S**
+**Tejashwini S**
 
-- **Shreya Reddy S**
-- **Likitha M S**
-- **Tejashwini**
 
-GitHub: [Shreya59422](https://github.com/Shreya59422)
-
-## License
-
-This project is developed for academic and educational purposes.
-
-Please refer to the original dataset documentation for dataset licensing and usage conditions.
-
----
-
-Thank you for visiting!
+**GitHub:** https://github.com/Shreya59422
+            https://github.com/likithams09
+            https://github.com/teju123540
